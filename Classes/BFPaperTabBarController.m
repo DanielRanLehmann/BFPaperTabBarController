@@ -245,14 +245,26 @@ CGFloat const bfPaperTabBarController_tapCircleDiameterDefault = -2.f;
     invisibleTouchView.userInteractionEnabled = YES;
     invisibleTouchView.exclusiveTouch = NO;
     
+    
     UILongPressGestureRecognizer *press = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
     press.delegate = self;
     press.delaysTouchesBegan = NO;
     press.delaysTouchesEnded = NO;
     press.cancelsTouchesInView = NO;
-    press.minimumPressDuration = 0;
+    press.minimumPressDuration = 0.6;
+    
+    UILongPressGestureRecognizer *tap = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleTapPress:)];
+    tap.delegate = self;
+    tap.delaysTouchesBegan = NO;
+    tap.delaysTouchesEnded = NO;
+    tap.cancelsTouchesInView = NO;
+    tap.minimumPressDuration = 0;
+    
+    [tap requireGestureRecognizerToFail:press];
+    
+    [invisibleTouchView addGestureRecognizer:tap];
     [invisibleTouchView addGestureRecognizer:press];
-    press = nil;
+    
     
     rippleAnimationQueue = [NSMutableArray array];
     deathRowForCircleLayers = [NSMutableArray array];
@@ -359,21 +371,60 @@ CGFloat const bfPaperTabBarController_tapCircleDiameterDefault = -2.f;
 
 
 #pragma mark - Gesture Recognizer Handlers
+
+- (void)handleTapPress:(UILongPressGestureRecognizer *)tapPress {
+    if (tapPress.state == UIGestureRecognizerStateBegan) {
+//        NSLog(@"Press began...");
+        CGPoint location = [tapPress locationInView:tapPress.view];
+        //NSLog(@"pressed at location (%0.2f, %0.2f)", location.x, location.y);
+        for (int i = 0; i < self.invisibleTappableTabRects.count; i++) {
+            CGRect rect = [[self.invisibleTappableTabRects objectAtIndex:i] CGRectValue];
+            if (CGRectContainsPoint(rect, location)) {
+                if ([[self delegate] respondsToSelector:@selector(tabBarController:shouldSelectViewController:)]) {
+                    [self.delegate tabBarController:self shouldSelectViewController:[self.viewControllers objectAtIndex:i]];
+                }
+            }
+        }
+        
+        [self selectTabForPoint:location];
+        
+        tapPoint = location;
+        //        self.tapPoint = CGPointMake(newLocation.x, location.y);
+        
+        if (self.showTapCircleAndBackgroundFade) {
+            //            self.growthFinished = NO;
+            [self touchDownAnimations]; // Go Steelers!
+        }
+    }
+    else if (tapPress.state == UIGestureRecognizerStateEnded
+              ||
+              tapPress.state == UIGestureRecognizerStateCancelled
+              ||
+              tapPress.state == UIGestureRecognizerStateFailed) {
+//        NSLog(@"Press ended|cancelled|failed.");
+        // Remove tap-circle:
+        
+        if (self.showTapCircleAndBackgroundFade) {
+            [self touchUpAnimations];
+        }
+    }
+}
+
 - (void)handleLongPress:(UILongPressGestureRecognizer *)longPress
 {
     if (longPress.state == UIGestureRecognizerStateBegan) {
         //NSLog(@"Press began...");
-        
         CGPoint location = [longPress locationInView:longPress.view];
         //NSLog(@"pressed at location (%0.2f, %0.2f)", location.x, location.y);
-        
-        
         for (int i = 0; i < self.invisibleTappableTabRects.count; i++) {
             CGRect rect = [[self.invisibleTappableTabRects objectAtIndex:i] CGRectValue];
             if (CGRectContainsPoint(rect, location)) {
                 if([[self delegate] respondsToSelector:@selector(tabBarController:shouldSelectViewController:)]) {
                     [self.delegate tabBarController:self shouldSelectViewController:[self.viewControllers objectAtIndex:i]];
                 }
+                
+                // send notification of long press
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"BFPaperTabBarItemLongPressAtIndex" object:@(i)];
             }
         }
         
