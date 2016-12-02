@@ -38,7 +38,6 @@ extern CGFloat const bfPaperTabBarController_tapCircleDiameterLarge;
 extern CGFloat const bfPaperTabBarController_tapCircleDiameterFull;
 extern CGFloat const bfPaperTabBarController_tapCircleDiameterDefault;
 
-IB_DESIGNABLE
 @interface BFPaperTabBarController : UITabBarController
 
 #pragma mark - Properties
